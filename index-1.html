@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CASHFLOW — Crypto + Real Life Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0f;color:#e0e0e0;font-family:'Space Mono',monospace;min-height:100vh}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+  input,select{outline:none}button{cursor:pointer}
+  .tab-btn{background:none;border:none;padding:10px 14px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;transition:all .2s;border-bottom:2px solid transparent;color:#555;white-space:nowrap}
+  .tab-btn.active{color:#00FFB3;border-bottom-color:#00FFB3}
+  .card{background:#111318;border:1px solid #1e2028;border-radius:12px;padding:20px}
+  .input-field{background:#0d0f14;border:1px solid #2a2d35;border-radius:8px;color:#e0e0e0;padding:10px 12px;font-family:'Space Mono',monospace;font-size:12px;width:100%}
+  .input-field:focus{border-color:#00FFB3}
+  .btn-primary{background:#00FFB3;color:#0a0a0f;border:none;border-radius:8px;padding:10px 20px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:1px;transition:all .2s;cursor:pointer}
+  .btn-primary:hover{background:#00e6a0}
+  .btn-blue{background:#4D96FF;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer}
+  .btn-ghost{background:none;border:1px solid #2a2d35;border-radius:8px;color:#888;padding:8px 14px;font-family:'Space Mono',monospace;font-size:10px;transition:all .2s;cursor:pointer}
+  .txn-row{border-bottom:1px solid #15181f;padding:12px 0;display:flex;align-items:center;gap:12px}
+  .txn-row:last-child{border-bottom:none}
+  select option{background:#111318}
+  .cat-btn{padding:8px 4px;border-radius:8px;font-family:monospace;cursor:pointer;transition:all .2s;font-size:10px}
+  .type-btn{flex:1;padding:7px;border-radius:8px;font-family:monospace;cursor:pointer;transition:all .2s;font-size:10px}
+  .filter-btn{padding:6px 12px;border-radius:6px;font-family:monospace;cursor:pointer;font-size:10px}
+  .token-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #15181f}
+  .token-row:last-child{border-bottom:none}
+  .token-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const API_KEY = "CG-dYDH4jKCbFvhdXdfUat7pSgL";
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+
+const WALLET_COLORS = ["#00FFB3","#FF6B6B","#FFD93D","#6BCB77","#4D96FF","#C77DFF","#FF9F1C","#2EC4B6"];
+const CAT_ICONS = {mint:"🔥",swap:"💱",gas:"⛽",bridge:"🌉",other_crypto:"🔗",dana:"💳",tarik:"💵",beli:"🛒",masuk:"💰",other_rl:"📋"};
+const CRYPTO_CATS = ["mint","swap","gas","bridge","other_crypto"];
+const RL_CATS = ["dana","tarik","beli","masuk","other_rl"];
+const CAT_LABELS = {mint:"Mint NFT/Token",swap:"Swap → USDT",gas:"Gas Fee",bridge:"Bridge",other_crypto:"Other Crypto",dana:"Saldo Dana",tarik:"Tarik Tunai",beli:"Beli (Rokok dll)",masuk:"Uang Masuk",other_rl:"Lainnya"};
+const TOKEN_ICONS = {
+  BTC:{icon:"₿",bg:"#F7931A25",color:"#F7931A"},
+  ETH:{icon:"Ξ",bg:"#627EEA25",color:"#627EEA"},
+  USDT:{icon:"₮",bg:"#26A17B25",color:"#26A17B"},
+  BNB:{icon:"◈",bg:"#F3BA2F25",color:"#F3BA2F"},
+  SOL:{icon:"◎",bg:"#9945FF25",color:"#9945FF"},
+  USDC:{icon:"$",bg:"#2775CA25",color:"#2775CA"},
+};
+const TOKEN_CG_IDS = {
+  BTC:"bitcoin",ETH:"ethereum",USDT:"tether",BNB:"binancecoin",SOL:"solana",USDC:"usd-coin"
+};
+
+function fmt(n,sym="$"){return `${sym}${Number(n||0).toFixed(2)}`;}
+function fmtIDR(n){
+  if(n>=1e9)return 'Rp '+(n/1e9).toFixed(2)+' M';
+  if(n>=1e6)return 'Rp '+(n/1e6).toFixed(2)+' jt';
+  if(n>=1e3)return 'Rp '+(n/1e3).toFixed(1)+' rb';
+  return 'Rp '+Math.round(n).toLocaleString('id-ID');
+}
+function fmtIDRFull(n){return 'Rp '+Math.round(n).toLocaleString('id-ID');}
+function fmtEth(n){return `${Number(n||0).toFixed(6)}`;}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+
+function App() {
+  const [tab, setTab] = useState("dashboard");
+  const [wallets, setWallets] = useState(() => load("ft_wallets", []));
+  const [txns, setTxns] = useState(() => load("ft_txns", []));
+  const [prices, setPrices] = useState({});
+  const [priceUpdated, setPriceUpdated] = useState("");
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  useEffect(() => { save("ft_wallets", wallets); }, [wallets]);
+  useEffect(() => { save("ft_txns", txns); }, [txns]);
+
+  const addTxn = useCallback((txn) => setTxns(p => [{...txn,id:uid(),ts:Date.now()},...p]), []);
+  const delTxn = useCallback((id) => setTxns(p => p.filter(t => t.id !== id)), []);
+
+  const fetchPrices = useCallback(async () => {
+    setPriceLoading(true);
+    const allSyms = [...new Set(wallets.flatMap(w => (w.tokens||[]).map(t => t.sym)))];
+    if(allSyms.length === 0) { setPriceLoading(false); return; }
+    const ids = allSyms.map(s => TOKEN_CG_IDS[s]||s.toLowerCase()).join(',');
+    try {
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=idr,usd&include_24hr_change=true&x_cg_demo_api_key=${API_KEY}`);
+      const data = await res.json();
+      setPrices(data);
+      setPriceUpdated(new Date().toLocaleTimeString('id-ID'));
+    } catch(e) {}
+    setPriceLoading(false);
+  }, [wallets]);
+
+  useEffect(() => { if(wallets.length > 0) fetchPrices(); }, [wallets]);
+
+  const cryptoTxns = txns.filter(t => CRYPTO_CATS.includes(t.category));
+  const rlTxns = txns.filter(t => RL_CATS.includes(t.category));
+  const totalIn = txns.filter(t=>t.type==="income").reduce((s,t)=>s+Number(t.usd||0),0);
+  const totalOut = txns.filter(t=>t.type==="expense").reduce((s,t)=>s+Number(t.usd||0),0);
+
+  return (
+    <div style={{fontFamily:"'Space Mono',monospace",background:"#0a0a0f",minHeight:"100vh",color:"#e0e0e0"}}>
+      {/* Header */}
+      <div style={{background:"#0d0f14",borderBottom:"1px solid #1e2028",padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:3,color:"#00FFB3"}}>CASHFLOW</div>
+          <div style={{fontSize:9,color:"#555",letterSpacing:2,marginTop:1}}>CRYPTO + REAL LIFE TRACKER</div>
+        </div>
+        <button onClick={fetchPrices} style={{background:"none",border:"1px solid #2a2d35",borderRadius:8,color:priceLoading?"#00FFB3":"#555",padding:"6px 12px",fontFamily:"monospace",fontSize:10,cursor:"pointer"}}>
+          {priceLoading?"...":"⟳"} IDR
+        </button>
+      </div>
+      {/* Tabs */}
+      <div style={{background:"#0d0f14",borderBottom:"1px solid #1e2028",display:"flex",overflowX:"auto",padding:"0 4px"}}>
+        {[["dashboard","📊"],["wallets","💎 Wallets"],["crypto","⛓ Crypto"],["reallife","💳 Real Life"],["history","🕐 History"]].map(([k,l])=>(
+          <button key={k} className={`tab-btn ${tab===k?"active":""}`} onClick={()=>setTab(k)}>{l}</button>
+        ))}
+      </div>
+      <div style={{padding:"16px",maxWidth:680,margin:"0 auto"}}>
+        {tab==="dashboard" && <DashboardTab txns={txns} wallets={wallets} totalIn={totalIn} totalOut={totalOut} prices={prices} priceUpdated={priceUpdated}/>}
+        {tab==="wallets"   && <WalletsTab wallets={wallets} setWallets={setWallets} txns={txns} prices={prices} priceUpdated={priceUpdated} fetchPrices={fetchPrices} priceLoading={priceLoading}/>}
+        {tab==="crypto"    && <CryptoTab wallets={wallets} addTxn={addTxn} prices={prices} txns={cryptoTxns} delTxn={delTxn}/>}
+        {tab==="reallife"  && <RealLifeTab addTxn={addTxn} txns={rlTxns} delTxn={delTxn}/>}
+        {tab==="history"   && <HistoryTab txns={txns} delTxn={delTxn} wallets={wallets}/>}
+      </div>
+    </div>
+  );
+}
+
+function DashboardTab({txns,wallets,totalIn,totalOut,prices,priceUpdated}) {
+  const net = totalIn - totalOut;
+  const cryptoIn  = txns.filter(t=>t.type==="income"&&CRYPTO_CATS.includes(t.category)).reduce((s,t)=>s+Number(t.usd||0),0);
+  const cryptoOut = txns.filter(t=>t.type==="expense"&&CRYPTO_CATS.includes(t.category)).reduce((s,t)=>s+Number(t.usd||0),0);
+  const rlIn  = txns.filter(t=>t.type==="income"&&RL_CATS.includes(t.category)).reduce((s,t)=>s+Number(t.usd||0),0);
+  const rlOut = txns.filter(t=>t.type==="expense"&&RL_CATS.includes(t.category)).reduce((s,t)=>s+Number(t.usd||0),0);
+
+  // total portfolio IDR from wallets
+  let portfolioIDR = 0;
+  wallets.forEach(w => {
+    (w.tokens||[]).forEach(t => {
+      const cgId = TOKEN_CG_IDS[t.sym]||t.sym.toLowerCase();
+      const p = prices[cgId];
+      if(p) portfolioIDR += p.idr * t.amount;
+    });
+  });
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {portfolioIDR > 0 && (
+        <div className="card" style={{borderColor:"#00FFB320",textAlign:"center"}}>
+          <div style={{fontSize:10,color:"#555",letterSpacing:2,marginBottom:6}}>TOTAL PORTFOLIO (IDR)</div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:36,color:"#00FFB3"}}>{fmtIDRFull(portfolioIDR)}</div>
+          {priceUpdated && <div style={{fontSize:10,color:"#333",marginTop:4}}>Update: {priceUpdated}</div>}
+        </div>
+      )}
+      <div className="card" style={{textAlign:"center",borderColor:net>=0?"#00FFB330":"#FF6B6B30"}}>
+        <div style={{fontSize:11,color:"#555",letterSpacing:2,marginBottom:8}}>NET CASHFLOW</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:46,color:net>=0?"#00FFB3":"#FF6B6B",lineHeight:1}}>
+          {net>=0?"+":""}{fmt(net)}
+        </div>
+        <div style={{fontSize:10,color:"#555",marginTop:6}}>{txns.length} transaksi</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div className="card" style={{borderColor:"#00FFB320"}}>
+          <div style={{fontSize:10,color:"#555",marginBottom:6}}>TOTAL MASUK</div>
+          <div style={{fontSize:20,fontFamily:"'Bebas Neue',sans-serif",color:"#00FFB3"}}>{fmt(totalIn)}</div>
+        </div>
+        <div className="card" style={{borderColor:"#FF6B6B20"}}>
+          <div style={{fontSize:10,color:"#555",marginBottom:6}}>TOTAL KELUAR</div>
+          <div style={{fontSize:20,fontFamily:"'Bebas Neue',sans-serif",color:"#FF6B6B"}}>{fmt(totalOut)}</div>
+        </div>
+      </div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#555",letterSpacing:2,marginBottom:14}}>BREAKDOWN</div>
+        {[{label:"⛓ Crypto In",val:cryptoIn,color:"#00FFB3"},{label:"⛓ Crypto Out",val:cryptoOut,color:"#FF6B6B"},
+          {label:"💳 Real Life In",val:rlIn,color:"#4D96FF"},{label:"💳 Real Life Out",val:rlOut,color:"#FFD93D"}].map(({label,val,color})=>(
+          <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #1a1d24"}}>
+            <span style={{fontSize:12,color:"#888"}}>{label}</span>
+            <span style={{fontSize:14,fontWeight:700,color}}>{fmt(val)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WalletsTab({wallets,setWallets,txns,prices,priceUpdated,fetchPrices,priceLoading}) {
+  const [adding,setAdding] = useState(false);
+  const [form,setForm] = useState({name:"",address:""});
+  const [tokenForms,setTokenForms] = useState({});
+
+  const addWallet = () => {
+    if(!form.name)return;
+    setWallets(p=>[...p,{id:uid(),name:form.name,address:form.address,tokens:[]}]);
+    setForm({name:"",address:""});setAdding(false);
+  };
+  const delWallet = id => setWallets(p=>p.filter(w=>w.id!==id));
+
+  const addToken = (wid) => {
+    const tf = tokenForms[wid]||{sym:"BTC",amount:""};
+    if(!tf.amount)return;
+    setWallets(p=>p.map(w=>w.id===wid?{...w,tokens:[...(w.tokens||[]),{sym:tf.sym.toUpperCase(),amount:Number(tf.amount)}]}:w));
+    setTokenForms(p=>({...p,[wid]:{sym:"BTC",amount:""}}));
+  };
+  const delToken = (wid,idx) => setWallets(p=>p.map(w=>w.id===wid?{...w,tokens:w.tokens.filter((_,i)=>i!==idx)}:w));
+
+  let totalPortfolioIDR = 0;
+  wallets.forEach(w=>{
+    (w.tokens||[]).forEach(t=>{
+      const p = prices[TOKEN_CG_IDS[t.sym]||t.sym.toLowerCase()];
+      if(p) totalPortfolioIDR += p.idr*t.amount;
+    });
+  });
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:11,color:"#555",letterSpacing:2}}>MY WALLETS</div>
+          {totalPortfolioIDR>0&&<div style={{fontSize:12,color:"#00FFB3",marginTop:4}}>{fmtIDRFull(totalPortfolioIDR)}</div>}
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn-ghost" onClick={fetchPrices} style={{fontSize:10,color:priceLoading?"#00FFB3":"#888"}}>{priceLoading?"...":"⟳"}</button>
+          <button className="btn-primary" onClick={()=>setAdding(!adding)}>+ WALLET</button>
+        </div>
+      </div>
+      {priceUpdated&&<div style={{fontSize:10,color:"#333"}}>Harga update: {priceUpdated}</div>}
+
+      {adding && (
+        <div className="card" style={{borderColor:"#00FFB330"}}>
+          <div style={{fontSize:11,color:"#00FFB3",letterSpacing:2,marginBottom:14}}>NEW WALLET</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <input className="input-field" placeholder="Nama wallet (Wallet A)" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
+            <input className="input-field" placeholder="Address (opsional)" value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))}/>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-primary" onClick={addWallet} style={{flex:1}}>SIMPAN</button>
+              <button className="btn-ghost" onClick={()=>setAdding(false)}>BATAL</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {wallets.length===0&&!adding&&<div style={{textAlign:"center",padding:40,color:"#333"}}><div style={{fontSize:32,marginBottom:8}}>💎</div><div style={{fontSize:12}}>Belum ada wallet</div></div>}
+
+      {wallets.map((w,wi)=>{
+        const tf = tokenForms[w.id]||{sym:"BTC",amount:""};
+        let walletIDR=0;
+        (w.tokens||[]).forEach(t=>{
+          const p=prices[TOKEN_CG_IDS[t.sym]||t.sym.toLowerCase()];
+          if(p) walletIDR+=p.idr*t.amount;
+        });
+        return (
+          <div key={w.id} className="card">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:12,height:12,borderRadius:3,background:WALLET_COLORS[wi%WALLET_COLORS.length]}}/>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#e0e0e0"}}>{w.name}</div>
+                  {w.address&&<div style={{fontSize:10,color:"#444",marginTop:2}}>{w.address.slice(0,8)}...{w.address.slice(-6)}</div>}
+                  {walletIDR>0&&<div style={{fontSize:12,color:"#00FFB3",marginTop:3}}>{fmtIDRFull(walletIDR)}</div>}
+                </div>
+              </div>
+              <button className="btn-ghost" onClick={()=>delWallet(w.id)} style={{color:"#FF6B6B",borderColor:"#FF6B6B30",fontSize:10,padding:"4px 10px"}}>DEL</button>
+            </div>
+
+            {/* Token list */}
+            {(w.tokens||[]).length===0&&<div style={{fontSize:11,color:"#333",textAlign:"center",padding:"12px 0"}}>Belum ada token</div>}
+            {(w.tokens||[]).map((t,ti)=>{
+              const cgId=TOKEN_CG_IDS[t.sym]||t.sym.toLowerCase();
+              const p=prices[cgId];
+              const ic=TOKEN_ICONS[t.sym]||{icon:"◆",bg:"#ffffff10",color:"#888"};
+              const totalIDR=p?p.idr*t.amount:0;
+              const totalUSD=p?p.usd*t.amount:0;
+              const change=p?.usd_24h_change||0;
+              return (
+                <div key={ti} className="token-row">
+                  <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
+                    <div className="token-icon" style={{background:ic.bg,color:ic.color}}>{ic.icon}</div>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:"#e0e0e0"}}>{t.sym}</div>
+                      <div style={{fontSize:10,color:"#555",marginTop:2}}>
+                        {p?fmtIDRFull(p.idr)+'/koin':'-'}
+                        {p&&<span style={{color:change>=0?"#00FFB3":"#FF6B6B",marginLeft:6}}>{change>=0?"▲":"▼"}{Math.abs(change).toFixed(2)}%</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",marginRight:10}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#00FFB3"}}>{p?fmtIDR(totalIDR):'—'}</div>
+                    <div style={{fontSize:10,color:"#555"}}>{t.amount} {t.sym} · {p?'$'+totalUSD.toFixed(4):'—'}</div>
+                  </div>
+                  <button onClick={()=>delToken(w.id,ti)} style={{background:"none",border:"none",color:"#333",fontSize:14,cursor:"pointer"}}>×</button>
+                </div>
+              );
+            })}
+
+            {/* Add token */}
+            <div style={{display:"flex",gap:8,marginTop:14,alignItems:"center"}}>
+              <select className="input-field" style={{flex:"0 0 80px",padding:"8px"}}
+                value={tf.sym} onChange={e=>setTokenForms(p=>({...p,[w.id]:{...tf,sym:e.target.value}}))}>
+                {Object.keys(TOKEN_ICONS).map(s=><option key={s} value={s}>{s}</option>)}
+                <option value="OTHER">OTHER</option>
+              </select>
+              <input className="input-field" type="number" placeholder="Jumlah" style={{flex:1}}
+                value={tf.amount} onChange={e=>setTokenForms(p=>({...p,[w.id]:{...tf,amount:e.target.value}}))}/>
+              <button className="btn-primary" onClick={()=>addToken(w.id)} style={{padding:"8px 12px",fontSize:10}}>+</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CryptoTab({wallets,addTxn,prices,txns,delTxn}) {
+  const [form,setForm]=useState({walletId:"",category:"mint",type:"expense",amountEth:"",amountUsd:"",note:"",token:""});
+  const [ethMode,setEthMode]=useState(true);
+  const catDefs={mint:{type:"expense"},swap:{type:"income"},gas:{type:"expense"},bridge:{type:"expense"},other_crypto:{type:"expense"}};
+  const ethPrice = prices["ethereum"]?.usd || 3500;
+  const usdVal=ethMode?Number(form.amountEth||0)*ethPrice:Number(form.amountUsd||0);
+  const handleCat=cat=>setForm(p=>({...p,category:cat,type:catDefs[cat]?.type||"expense"}));
+  const submit=()=>{
+    if(!form.walletId||usdVal<=0)return;
+    addTxn({source:"crypto",walletId:form.walletId,category:form.category,type:form.type,amountEth:form.amountEth,usd:usdVal,note:form.note,token:form.token});
+    setForm(p=>({...p,amountEth:"",amountUsd:"",note:"",token:""}));
+  };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div className="card" style={{borderColor:"#00FFB320"}}>
+        <div style={{fontSize:11,color:"#00FFB3",letterSpacing:2,marginBottom:14}}>LOG CRYPTO TXN</div>
+        {wallets.length===0?<div style={{textAlign:"center",padding:20,color:"#555",fontSize:12}}>Tambah wallet dulu di tab 💎 Wallets</div>:(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <select className="input-field" value={form.walletId} onChange={e=>setForm(p=>({...p,walletId:e.target.value}))}>
+              <option value="">Pilih wallet...</option>
+              {wallets.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+              {CRYPTO_CATS.map(cat=>(
+                <button key={cat} className="cat-btn" onClick={()=>handleCat(cat)}
+                  style={{border:`1px solid ${form.category===cat?"#00FFB3":"#1e2028"}`,background:form.category===cat?"#00FFB315":"#0d0f14",color:form.category===cat?"#00FFB3":"#666"}}>
+                  {CAT_ICONS[cat]} {CAT_LABELS[cat].split(" ")[0]}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              {["income","expense"].map(t=>(
+                <button key={t} className="type-btn" onClick={()=>setForm(p=>({...p,type:t}))}
+                  style={{border:`1px solid ${form.type===t?(t==="income"?"#00FFB3":"#FF6B6B"):"#1e2028"}`,background:form.type===t?(t==="income"?"#00FFB315":"#FF6B6B15"):"#0d0f14",color:form.type===t?(t==="income"?"#00FFB3":"#FF6B6B"):"#555"}}>
+                  {t==="income"?"↑ MASUK":"↓ KELUAR"}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button className="btn-ghost" onClick={()=>setEthMode(!ethMode)} style={{fontSize:10,whiteSpace:"nowrap"}}>{ethMode?"ETH":"USD"}</button>
+              <input className="input-field" type="number" step="0.000001"
+                placeholder={ethMode?"Jumlah ETH":"Jumlah USD"}
+                value={ethMode?form.amountEth:form.amountUsd}
+                onChange={e=>setForm(p=>ethMode?{...p,amountEth:e.target.value}:{...p,amountUsd:e.target.value})}
+                style={{flex:1}}/>
+              {ethMode&&<span style={{fontSize:11,color:"#555",whiteSpace:"nowrap"}}>{fmt(usdVal)}</span>}
+            </div>
+            <input className="input-field" placeholder="Token/NFT name" value={form.token} onChange={e=>setForm(p=>({...p,token:e.target.value}))}/>
+            <input className="input-field" placeholder="Catatan" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))}/>
+            <button className="btn-primary" onClick={submit} style={{width:"100%"}}>SAVE TRANSAKSI</button>
+          </div>
+        )}
+      </div>
+      {txns.length>0&&<div className="card"><div style={{fontSize:11,color:"#555",letterSpacing:2,marginBottom:10}}>RECENT</div>{txns.slice(0,8).map(t=><TxnRow key={t.id} t={t} delTxn={delTxn}/>)}</div>}
+    </div>
+  );
+}
+
+function RealLifeTab({addTxn,txns,delTxn}) {
+  const [form,setForm]=useState({category:"beli",type:"expense",amountIdr:"",amountUsd:"",note:""});
+  const [mode,setMode]=useState("idr");
+  const catDefs={dana:{type:"income"},tarik:{type:"expense"},beli:{type:"expense"},masuk:{type:"income"},other_rl:{type:"expense"}};
+  const usdVal=mode==="usd"?Number(form.amountUsd||0):Number(form.amountIdr||0)/16000;
+  const submit=()=>{
+    if(usdVal<=0)return;
+    addTxn({source:"reallife",category:form.category,type:form.type,amountIdr:mode==="idr"?form.amountIdr:"",usd:usdVal,note:form.note});
+    setForm(p=>({...p,amountIdr:"",amountUsd:"",note:""}));
+  };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div className="card" style={{borderColor:"#4D96FF20"}}>
+        <div style={{fontSize:11,color:"#4D96FF",letterSpacing:2,marginBottom:14}}>LOG UANG REAL LIFE</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+            {RL_CATS.map(cat=>(
+              <button key={cat} className="cat-btn" onClick={()=>setForm(p=>({...p,category:cat,type:catDefs[cat]?.type||"expense"}))}
+                style={{border:`1px solid ${form.category===cat?"#4D96FF":"#1e2028"}`,background:form.category===cat?"#4D96FF15":"#0d0f14",color:form.category===cat?"#4D96FF":"#666"}}>
+                {CAT_ICONS[cat]} {CAT_LABELS[cat].split(" ")[0]}
+              </button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {["income","expense"].map(t=>(
+              <button key={t} className="type-btn" onClick={()=>setForm(p=>({...p,type:t}))}
+                style={{border:`1px solid ${form.type===t?(t==="income"?"#00FFB3":"#FF6B6B"):"#1e2028"}`,background:form.type===t?(t==="income"?"#00FFB315":"#FF6B6B15"):"#0d0f14",color:form.type===t?(t==="income"?"#00FFB3":"#FF6B6B"):"#555"}}>
+                {t==="income"?"↑ MASUK":"↓ KELUAR"}
+              </button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn-ghost" onClick={()=>setMode(m=>m==="idr"?"usd":"idr")} style={{fontSize:10,whiteSpace:"nowrap"}}>{mode==="idr"?"IDR":"USD"}</button>
+            <input className="input-field" type="number"
+              placeholder={mode==="idr"?"Jumlah IDR (Rp)":"Jumlah USD"}
+              value={mode==="idr"?form.amountIdr:form.amountUsd}
+              onChange={e=>setForm(p=>mode==="idr"?{...p,amountIdr:e.target.value}:{...p,amountUsd:e.target.value})}
+              style={{flex:1}}/>
+            {mode==="idr"&&form.amountIdr&&<span style={{fontSize:11,color:"#555",whiteSpace:"nowrap"}}>{fmt(usdVal)}</span>}
+          </div>
+          <input className="input-field" placeholder="Catatan (beli rokok, transfer Dana...)" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))}/>
+          <button className="btn-blue" onClick={submit} style={{width:"100%"}}>SAVE</button>
+        </div>
+      </div>
+      <div style={{background:"#111318",border:"1px solid #1e2028",borderRadius:8,padding:12,fontSize:11,color:"#444",lineHeight:1.8}}>
+        💡 Dana = saldo Dana manual · Tarik = ambil tunai · Beli = pengeluaran · Masuk = income masuk
+      </div>
+      {txns.length>0&&<div className="card"><div style={{fontSize:11,color:"#555",letterSpacing:2,marginBottom:10}}>RECENT</div>{txns.slice(0,8).map(t=><TxnRow key={t.id} t={t} delTxn={delTxn}/>)}</div>}
+    </div>
+  );
+}
+
+function HistoryTab({txns,delTxn,wallets}) {
+  const [filter,setFilter]=useState("all");
+  const filtered=txns.filter(t=>{
+    if(filter==="income")return t.type==="income";
+    if(filter==="expense")return t.type==="expense";
+    if(filter==="crypto")return t.source==="crypto";
+    if(filter==="reallife")return t.source==="reallife";
+    return true;
+  });
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {[["all","ALL"],["income","↑ IN"],["expense","↓ OUT"],["crypto","⛓"],["reallife","💳"]].map(([k,l])=>(
+          <button key={k} className="filter-btn" onClick={()=>setFilter(k)}
+            style={{border:`1px solid ${filter===k?"#00FFB3":"#1e2028"}`,background:filter===k?"#00FFB315":"transparent",color:filter===k?"#00FFB3":"#555"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {filtered.length===0?<div style={{textAlign:"center",padding:40,color:"#333",fontSize:12}}>Kosong</div>:(
+        <div className="card">{filtered.map(t=><TxnRow key={t.id} t={t} delTxn={delTxn} wallets={wallets} showWallet/>)}</div>
+      )}
+    </div>
+  );
+}
+
+function TxnRow({t,delTxn,wallets,showWallet}) {
+  const wallet=wallets?.find(w=>w.id===t.walletId);
+  const d=new Date(t.ts);
+  const ds=`${d.getDate()}/${d.getMonth()+1} ${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")}`;
+  return (
+    <div className="txn-row">
+      <div style={{fontSize:18,flexShrink:0}}>{CAT_ICONS[t.category]||"📋"}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:11,color:"#888"}}>{CAT_LABELS[t.category]}</span>
+          {t.token&&<span style={{fontSize:10,color:"#555",background:"#1a1d24",padding:"1px 6px",borderRadius:3}}>{t.token}</span>}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{fontSize:10,color:"#444"}}>{ds}</span>
+          {showWallet&&wallet&&<span style={{fontSize:10,color:"#555"}}>{wallet.name}</span>}
+          {t.note&&<span style={{fontSize:10,color:"#444",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>{t.note}</span>}
+        </div>
+      </div>
+      <div style={{textAlign:"right",flexShrink:0}}>
+        <div style={{fontSize:13,fontWeight:700,color:t.type==="income"?"#00FFB3":"#FF6B6B"}}>
+          {t.type==="income"?"+":"-"}{fmt(t.usd)}
+        </div>
+        {t.amountIdr&&<div style={{fontSize:10,color:"#555"}}>Rp{Number(t.amountIdr).toLocaleString()}</div>}
+      </div>
+      <button onClick={()=>delTxn(t.id)} style={{background:"none",border:"none",color:"#333",fontSize:16,cursor:"pointer",padding:"4px",flexShrink:0}}>×</button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
