@@ -17,4 +17,4 @@ A personal finance tracker that combines **crypto wallet activity** and **real l
 Pure HTML + React (CDN) — no build tools, runs directly in browser.
 
 ## Live Demo
-[▶ Live Demo](https://claude.ai/public/artifacts/be0eecda-7a5b-48f2-bec8-3147961bee48)
+[▶ Live Demo](https://farel-finance.vercel.app/)
