@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CashFlow — Track Every Rupiah. Track Every Asset.</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#080808;--surface:#0f0f0f;--surface2:#141414;--surface3:#1a1a1a;
+  --border:#1f1f1f;--border2:#2a2a2a;--purple:#7c3aed;
+  --text:#f5f5f5;--text2:#a3a3a3;--text3:#525252;
+  --green:#4ade80;--red:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:rgba(124,58,237,.25)}
+::-webkit-scrollbar{width:1px}::-webkit-scrollbar-thumb{background:var(--border2)}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit;cursor:pointer}
+.container{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;display:flex;align-items:center;border-bottom:1px solid transparent;transition:all .3s}
+nav.scrolled{background:rgba(8,8,8,.92);backdrop-filter:blur(12px);border-color:var(--border)}
+.nav-inner{width:100%;max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-size:15px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:7px}
+.logo-mark{width:18px;height:18px;border-radius:4px;background:var(--purple);display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:10px;height:10px}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{font-size:13.5px;color:var(--text2);transition:color .15s}
+.nav-links a:hover{color:var(--text)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.btn-ghost{background:none;border:1px solid var(--border2);color:var(--text2);padding:7px 16px;border-radius:6px;font-size:13px;transition:all .15s}
+.btn-ghost:hover{border-color:#444;color:var(--text)}
+.btn-solid{background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:500;transition:background .15s}
+.btn-solid:hover{background:#6d28d9}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 0 80px;position:relative}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:28px}
+.hero-eyebrow::before{content:'';width:16px;height:1px;background:var(--text3)}
+.hero h1{font-size:clamp(42px,5.5vw,72px);font-weight:600;letter-spacing:-.04em;line-height:1.08;max-width:640px;margin-bottom:24px}
+.hero h1 em{font-style:normal;color:var(--text3)}
+.hero-sub{font-size:16px;color:var(--text2);line-height:1.65;max-width:440px;margin-bottom:40px;letter-spacing:-.01em}
+.hero-actions{display:flex;gap:10px;align-items:center;margin-bottom:72px}
+.btn-hero-primary{background:var(--text);color:var(--bg);border:none;padding:10px 22px;border-radius:7px;font-size:14px;font-weight:500;letter-spacing:-.02em;transition:opacity .15s}
+.btn-hero-primary:hover{opacity:.88}
+.btn-hero-secondary{background:none;border:1px solid var(--border2);color:var(--text2);padding:10px 22px;border-radius:7px;font-size:14px;letter-spacing:-.02em;transition:all .15s}
+.btn-hero-secondary:hover{border-color:#444;color:var(--text)}
+
+/* MOCKUP */
+.hero-visual{width:100%;border-radius:12px;border:1px solid var(--border);background:var(--surface);overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.03),0 40px 80px rgba(0,0,0,.7)}
+.mockup-chrome{display:flex;align-items:center;gap:6px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.chrome-dot{width:9px;height:9px;border-radius:50%;background:var(--border2)}
+.chrome-url{margin-left:8px;flex:1;background:var(--surface2);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--text3)}
+.mockup-body{padding:20px;display:grid;grid-template-columns:200px 1fr;gap:16px;min-height:320px}
+.mock-sidebar{display:flex;flex-direction:column;gap:4px}
+.mock-nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;font-size:12px;color:var(--text3)}
+.mock-nav-item.active{background:var(--surface3);color:var(--text)}
+.mock-nav-item svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75}
+.mock-main{display:flex;flex-direction:column;gap:12px}
+.mock-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mock-stat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.mock-stat-label{font-size:10px;color:var(--text3);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase}
+.mock-stat-val{font-size:18px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.mock-stat-sub{font-size:10px;color:var(--text3);margin-top:4px}
+.mock-chart-area{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px}
+.mock-token-list{background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.mock-token-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.mock-token-header span{font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase}
+.mock-token-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)}
+.mock-token-row:last-child{border-bottom:none}
+
+/* SECTIONS */
+.section{padding:96px 0}
+.section-label{font-size:12px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.section-label::before{content:'';display:block;width:20px;height:1px;background:var(--border2)}
+.section h2{font-size:clamp(28px,3vw,40px);font-weight:600;letter-spacing:-.035em;line-height:1.15;margin-bottom:14px}
+.section-sub{font-size:16px;color:var(--text2);line-height:1.65;max-width:480px;letter-spacing:-.01em}
+
+/* METRICS */
+.metrics-bar{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:32px 0;display:grid;grid-template-columns:repeat(4,1fr)}
+.metric-item{padding:0 32px;border-right:1px solid var(--border)}
+.metric-item:first-child{padding-left:0}
+.metric-item:last-child{border-right:none}
+.metric-num{font-size:28px;font-weight:600;letter-spacing:-.04em;margin-bottom:4px}
+.metric-label{font-size:13px;color:var(--text3)}
+
+/* FEATURES */
+.feature-list{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:56px}
+.feature-item{padding:32px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);transition:background .2s}
+.feature-item:nth-child(2n){border-right:none}
+.feature-item:nth-last-child(-n+2){border-bottom:none}
+.feature-item:hover{background:var(--surface)}
+.feat-icon-wrap{width:36px;height:36px;border-radius:8px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--text2)}
+.feat-icon-wrap svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75}
+.feat-title{font-size:14px;font-weight:500;letter-spacing:-.02em;margin-bottom:8px}
+.feat-desc{font-size:13px;color:var(--text3);line-height:1.6}
+
+/* ROADMAP */
+.roadmap-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:56px}
+.roadmap-col{background:var(--bg);padding:32px}
+.roadmap-col-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:24px;display:flex;align-items:center;gap:8px}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-dot.live{background:#4ade80;box-shadow:0 0 6px #4ade80}
+.status-dot.soon{background:var(--purple);box-shadow:0 0 6px var(--purple)}
+.roadmap-item{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--border)}
+.ri-name{font-size:14px;color:var(--text2)}
+.ri-check{width:18px;height:18px;border-radius:4px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center}
+.ri-check.done{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.2)}
+.ri-check svg{width:10px;height:10px;stroke-width:2.5;fill:none}
+
+/* CTA */
+.cta-block{border:1px solid var(--border);border-radius:12px;padding:80px 60px;text-align:center;background:var(--surface);position:relative;overflow:hidden}
+.cta-block::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:200px;background:radial-gradient(ellipse,rgba(124,58,237,.06),transparent 70%);pointer-events:none}
+
+/* LOGIN MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;position:relative}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;transition:color .15s;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;letter-spacing:-.02em;margin-bottom:28px}
+.modal h2{font-size:22px;font-weight:600;letter-spacing:-.03em;margin-bottom:6px}
+.modal-sub{font-size:14px;color:var(--text3);margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{font-size:12px;color:var(--text3);letter-spacing:.02em;display:block;margin-bottom:6px}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:10px 13px;font-size:14px;font-family:inherit;transition:border-color .15s;outline:none}
+.field input:focus{border-color:rgba(124,58,237,.5)}
+.field input::placeholder{color:var(--text3)}
+.field-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.field-row label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text3);cursor:pointer}
+.field-row label input{accent-color:var(--purple);width:auto}
+.field-row a{font-size:13px;color:var(--text3);transition:color .15s}
+.field-row a:hover{color:var(--text2)}
+.btn-login{width:100%;background:var(--purple);color:#fff;border:none;padding:11px;border-radius:7px;font-size:14px;font-weight:500;letter-spacing:-.01em;transition:background .15s;cursor:pointer}
+.btn-login:hover{background:#6d28d9}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.login-error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:6px;padding:10px 13px;font-size:13px;color:#f87171;margin-bottom:16px;display:none}
+.login-error.show{display:block}
+.login-loading{display:none;text-align:center;font-size:13px;color:var(--text3);margin-top:12px}
+
+/* REVEAL */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s cubic-bezier(.4,0,.2,1),transform .6s cubic-bezier(.4,0,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal-d1{transition-delay:.08s}
+.reveal-d2{transition-delay:.16s}
+
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:36px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.footer-logo{font-size:14px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:7px;color:var(--text2)}
+.footer-links{display:flex;gap:20px}
+.footer-links a{font-size:13px;color:var(--text3);transition:color .15s}
+.footer-links a:hover{color:var(--text2)}
+.footer-copy{font-size:12px;color:var(--text3)}
+
+@media(max-width:768px){
+  .nav-links,.nav-right .btn-ghost{display:none}
+  .metrics-bar{grid-template-columns:1fr 1fr;gap:24px}
+  .metric-item{border-right:none;padding:0}
+  .feature-list{grid-template-columns:1fr}
+  .feature-item:nth-child(2n){border-right:1px solid var(--border)}
+  .feature-item:nth-last-child(-n+2){border-bottom:1px solid var(--border)}
+  .feature-item:last-child{border-bottom:none}
+  .roadmap-grid{grid-template-columns:1fr}
+  .mockup-body{grid-template-columns:1fr}
+  .mock-sidebar{display:none}
+  .cta-block{padding:48px 24px}
+  footer{flex-direction:column;gap:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-logo">
+      <div class="logo-mark"><svg viewBox="0 0 10 10"><path d="M2 8L5 2L8 8" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      CashFlow
+    </div>
+    <h2>Sign in</h2>
+    <p class="modal-sub">Access your financial dashboard.</p>
+    <div class="login-error" id="loginError"></div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleLogin()"/>
+    </div>
+    <div class="field-row">
+      <label><input type="checkbox" id="rememberMe"/> Remember me</label>
+      <a href="#">Forgot password</a>
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="handleLogin()">Sign in to dashboard</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <div class="logo-mark"><svg viewBox="0 0 10 10"><path d="M2 8L5 2L8 8" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      CashFlow
+    </div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="btn-ghost" onclick="openModal()">Sign in</button>
+      <button class="btn-solid" onclick="openModal()">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow reveal">Personal finance infrastructure</div>
+    <h1 class="reveal reveal-d1">Track every rupiah.<br/>Track every asset.</h1>
+    <p class="hero-sub reveal reveal-d1">One dashboard for crypto wallets, fiat accounts, income, expenses, and portfolio analytics.</p>
+    <div class="hero-actions reveal reveal-d2">
+      <button class="btn-hero-primary" onclick="openModal()">Start tracking</button>
+      <button class="btn-hero-secondary" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">See how it works</button>
+    </div>
+
+    <!-- Mockup -->
+    <div class="hero-visual reveal reveal-d2">
+      <div class="mockup-chrome">
+        <div class="chrome-dot"></div><div class="chrome-dot"></div><div class="chrome-dot"></div>
+        <div class="chrome-url">farel-finance.vercel.app</div>
+      </div>
+      <div class="mockup-body">
+        <div class="mock-sidebar">
+          <div style="font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;margin-bottom:6px">Menu</div>
+          <div class="mock-nav-item active"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Home</div>
+          <div class="mock-nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 6v6l4 2"/></svg>Crypto</div>
+          <div class="mock-nav-item"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Fiat</div>
+          <div class="mock-nav-item"><svg viewBox="0 0 24 24"><path d="M3 20h18M8 20V10M12 20V4M16 20v-6"/></svg>Analytics</div>
+        </div>
+        <div class="mock-main">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:16px;font-weight:600;letter-spacing:-.02em">Overview</div>
+            <div style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(74,222,128,.12);color:#4ade80">Synced</div>
+          </div>
+          <div class="mock-stats-row">
+            <div class="mock-stat"><div class="mock-stat-label">Total Assets</div><div class="mock-stat-val">Rp12.8jt</div><div class="mock-stat-sub" style="color:#4ade80">+3.2%</div></div>
+            <div class="mock-stat"><div class="mock-stat-label">Crypto</div><div class="mock-stat-val">Rp8.2jt</div><div class="mock-stat-sub">5 wallets</div></div>
+            <div class="mock-stat"><div class="mock-stat-label">Fiat</div><div class="mock-stat-val">Rp4.6jt</div><div class="mock-stat-sub">3 accounts</div></div>
+          </div>
+          <div class="mock-chart-area">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text3);letter-spacing:.04em;text-transform:uppercase">Cashflow 7D</div>
+            </div>
+            <svg width="100%" height="56" viewBox="0 0 400 56" preserveAspectRatio="none">
+              <path d="M0,42 C40,36 80,18 130,22 C180,26 200,8 240,12 C280,16 320,6 360,10 C380,12 395,14 400,13" fill="none" stroke="#4ade80" stroke-width="1.5" opacity=".8"/>
+              <path d="M0,48 C40,44 80,40 130,38 C180,36 200,32 240,36 C280,40 320,28 360,32 C380,36 395,34 400,33" fill="none" stroke="#f87171" stroke-width="1" opacity=".5" stroke-dasharray="3 2"/>
+            </svg>
+          </div>
+          <div class="mock-token-list">
+            <div class="mock-token-header"><span>Asset</span><span>Value</span></div>
+            <div class="mock-token-row">
+              <div style="width:24px;height:24px;border-radius:50%;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#93c5fd;flex-shrink:0">ETH</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:500">Ethereum</div><div style="font-size:10px;color:var(--text3)">0.000019 ETH</div></div>
+              <div style="text-align:right"><div style="font-size:12px;font-weight:500">Rp 611</div><div style="font-size:10px;color:#f87171">−2.28%</div></div>
+            </div>
+            <div class="mock-token-row">
+              <div style="width:24px;height:24px;border-radius:50%;background:#14532d;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#86efac;flex-shrink:0">USDT</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:500">Tether USD</div><div style="font-size:10px;color:var(--text3)">346.52 USDT</div></div>
+              <div style="text-align:right"><div style="font-size:12px;font-weight:500">Rp 5.6jt</div><div style="font-size:10px;color:#4ade80">+0.01%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics-bar reveal">
+    <div class="metric-item"><div class="metric-num">5</div><div class="metric-label">Wallets tracked</div></div>
+    <div class="metric-item"><div class="metric-num">All EVM</div><div class="metric-label">Chain support</div></div>
+    <div class="metric-item"><div class="metric-num">Real-time</div><div class="metric-label">IDR pricing</div></div>
+    <div class="metric-item"><div class="metric-num">Free</div><div class="metric-label">No subscription</div></div>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="section" id="features">
+    <div class="reveal">
+      <div class="section-label">Capabilities</div>
+      <h2>Built around your workflow.</h2>
+      <p class="section-sub">Every feature designed to reduce friction.</p>
+    </div>
+    <div class="feature-list reveal reveal-d1">
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+        <div class="feat-title">Wallet auto-scan</div>
+        <div class="feat-desc">Connect any EVM address. Token balances fetched automatically via Alchemy — no manual input required.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <div class="feat-title">IDR conversion</div>
+        <div class="feat-desc">Live USD/IDR exchange rate on every load. Portfolio values always in your local currency.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+        <div class="feat-title">Fiat accounts</div>
+        <div class="feat-desc">Track Dana, GoPay, BCA, cash alongside crypto. Full net worth picture in one dashboard.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 20h18M8 20V10M12 20V4M16 20v-6"/></svg></div>
+        <div class="feat-title">Cashflow analytics</div>
+        <div class="feat-desc">Income and expense breakdowns over 24H, 7D, 1M, 1Y. Compare periods, understand patterns.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+        <div class="feat-title">Transaction history</div>
+        <div class="feat-desc">Every entry logged with timestamp and category. Filter by direction, source, or date range.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg></div>
+        <div class="feat-title">Cloud sync</div>
+        <div class="feat-desc">Powered by Supabase. Data syncs securely across all devices. Access from any browser, anytime.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="section" id="roadmap">
+    <div class="reveal">
+      <div class="section-label">Roadmap</div>
+      <h2>Shipping fast.</h2>
+      <p class="section-sub">What's live and what's next.</p>
+    </div>
+    <div class="roadmap-grid reveal reveal-d1">
+      <div class="roadmap-col">
+        <div class="roadmap-col-label"><div class="status-dot live"></div>Live now</div>
+        <div>
+          <div class="roadmap-item"><div class="ri-name">Wallet tracking</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Cashflow logging</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Analytics dashboard</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Real-time IDR pricing</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Fiat account management</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Cloud sync</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Auth via Supabase</div><div class="ri-check done"><svg viewBox="0 0 12 12" stroke="#4ade80"><path d="M2 6l3 3 5-5"/></svg></div></div>
+        </div>
+      </div>
+      <div class="roadmap-col">
+        <div class="roadmap-col-label"><div class="status-dot soon"></div>In progress</div>
+        <div>
+          <div class="roadmap-item"><div class="ri-name">Multi-wallet auto-sync</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Data export (CSV)</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Native mobile app</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Telegram alerts</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Multi-user access</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">AI agent auto-tracking</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+          <div class="roadmap-item"><div class="ri-name">Solana + BTC support</div><div class="ri-check"><svg viewBox="0 0 12 12" stroke="var(--border2)"><circle cx="6" cy="6" r="4"/></svg></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="section" style="padding-bottom:0">
+    <div class="cta-block reveal">
+      <h2 style="font-size:clamp(24px,2.5vw,36px);font-weight:600;letter-spacing:-.035em;margin-bottom:12px;position:relative">Take control of your financial life.</h2>
+      <p style="font-size:15px;color:var(--text2);margin-bottom:32px;position:relative;letter-spacing:-.01em">One dashboard. All your money. Available now.</p>
+      <button class="btn-hero-primary" onclick="openModal()" style="font-size:15px;padding:11px 28px;position:relative">Open dashboard</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">
+      <div class="logo-mark"><svg viewBox="0 0 10 10"><path d="M2 8L5 2L8 8" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      CashFlow
+    </div>
+    <div class="footer-links">
+      <a href="#features">Features</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="https://github.com/mhdrauzanalfarel-cell/Money-inflow-outflow-all" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">© 2025 CashFlow</div>
+  </footer>
+</div>
+
+<script>
+const SUPA_URL="https://keznmbtbayieobrtlzfp.supabase.co";
+const SUPA_KEY="sb_publishable_eR2G6Nqo399D0W-irbTogw_kpNvvYGQ";
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+// Check if already logged in
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session) window.location.href='index.html';
+});
+
+function openModal(){document.getElementById('loginModal').classList.add('open');document.getElementById('loginEmail').focus()}
+function closeModal(){document.getElementById('loginModal').classList.remove('open')}
+document.getElementById('loginModal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+
+async function handleLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginError');
+  if(!email||!password){showError('Please enter email and password.');return;}
+  btn.disabled=true;btn.textContent='Signing in...';
+  err.classList.remove('show');
+  const{error}=await sb.auth.signInWithPassword({email,password});
+  if(error){
+    showError(error.message==='Invalid login credentials'?'Invalid email or password.':error.message);
+    btn.disabled=false;btn.textContent='Sign in to dashboard';
+  } else {
+    btn.textContent='Redirecting...';
+    window.location.href='index.html';
+  }
+}
+
+function showError(msg){
+  const err=document.getElementById('loginError');
+  err.textContent=msg;err.classList.add('show');
+}
+
+// Nav scroll
+window.addEventListener('scroll',()=>{
+  document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20);
+},{passive:true});
+
+// Reveal
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')});
+},{threshold:.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
